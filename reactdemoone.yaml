@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reactdemoone-reactdemoms
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: reactdemoone-reactdemoms
+  template:
+    metadata:
+      annotations:
+        redeploy: 'true'
+      labels:
+        app: reactdemoone-reactdemoms
+    spec:
+      containers:
+      - image: 672072155362.dkr.ecr.us-east-1.amazonaws.com/reactdemoone:latest
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 5173
+          initialDelaySeconds: 180
+          periodSeconds: 5
+        name: reactdemoone
+        ports:
+        - containerPort: 5173
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reactdemoms-service
+spec:
+  ports:
+  - port: 5173
+    protocol: TCP
+    targetPort: 5173
+  selector:
+    app: reactdemoone-reactdemoms
+  type: NodePort
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: 'true'
+  name: my-aws-ingress-class
+spec:
+  controller: ingress.k8s.aws/alb
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/load-balancer-name: reactdemoone-alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/subnets: subnet-05453e45d858e8762, subnet-0895b33781c0504e2
+    alb.ingress.kubernetes.io/success-codes: 200-404
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+  labels:
+    app: app-reactdemoone
+  name: ingress-reactdemoone
+spec:
+  defaultBackend:
+    service:
+      name: reactdemoms-service
+      port:
+        number: 5173
+  ingressClassName: my-aws-ingress-class
