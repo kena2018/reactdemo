@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reactdemoeight-reactms
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: reactdemoeight-reactms
+  template:
+    metadata:
+      annotations:
+        redeploy: 'true'
+      labels:
+        app: reactdemoeight-reactms
+    spec:
+      containers:
+      - image: 672072155362.dkr.ecr.us-east-1.amazonaws.com/reactdemoeight:latest
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 5173
+          initialDelaySeconds: 180
+          periodSeconds: 5
+        name: reactdemoeight
+        ports:
+        - containerPort: 5173
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reactms-service
+spec:
+  ports:
+  - port: 5173
+    protocol: TCP
+    targetPort: 5173
+  selector:
+    app: reactdemoeight-reactms
+  type: NodePort
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: 'true'
+  name: my-aws-ingress-class
+spec:
+  controller: ingress.k8s.aws/alb
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/load-balancer-name: reactdemoeight-alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/subnets: subnet-09ad970ecd1ea1b6b, subnet-004d82351216f14aa
+    alb.ingress.kubernetes.io/success-codes: 200-404
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '2'
+  labels:
+    app: app-reactdemoeight
+  name: ingress-reactdemoeight
+spec:
+  defaultBackend:
+    service:
+      name: reactms-service
+      port:
+        number: 5173
+  ingressClassName: my-aws-ingress-class
