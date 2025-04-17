@@ -1,19 +1,24 @@
+# Stage 1: Build the React app
 FROM node:18 AS build
 
-# Set the working directory inside the container to /app
 WORKDIR /app
 
-# Copy the dependency files to the working directory
+# Install dependencies
 COPY package.json package-lock.json ./
-
-# Install all project dependencies
 RUN npm install
 
-# Copy all remaining project files to the container
+# Copy source files and build
 COPY . .
-
-# Build the project
 RUN npm run build
+
+# Stage 2: Serve built app with Nginx
+FROM nginx:alpine
+
+# Copy production build to Nginx html folder
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Expose the container port for K8s ingress/service
 EXPOSE 80
 EXPOSE 5173
-CMD ["npm", "run", "dev"]
+
+CMD ["nginx", "-g", "daemon off;"]
